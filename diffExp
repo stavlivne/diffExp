@@ -1,0 +1,38 @@
+df = read.csv(file.choose(),row.names = 1,stringsAsFactors = FALSE)
+df = df[,1:(ncol(df)-1)]
+df = as.data.frame(t(df),stringsAsFactors = FALSE)
+names = colnames(df)[5:5081]
+results <- matrix(data=NA, nrow=5076, ncol=2)
+colnames(results)<- c('OTU','p.value')
+i<- 0
+for ( n in names ) {
+  i <-i+1
+  df$DepVal = as.numeric(df[[n]])
+  aov.res = aov(DepVal ~ Season + Error(Sampling),df)
+  print(n)
+  print(summary(aov.res))
+  results[i,1]<- rbind(n)
+  temp <- unlist(summary(aov.res))
+  names(temp)
+  temp2 <-as.data.frame(temp)
+  results[i,2] <- rbind(temp2[12,1])
+}
+
+# adding taxonomy
+taxa = read.csv(file.choose(),header= TRUE,stringsAsFactors = FALSE)
+res.taxa<- cbind(results,taxa)
+res.taxa =as.matrix(res.taxa)
+
+#correcting p.values for multiple comparison
+p.adjust.methods<- c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY",
+                     "fdr", "none")
+for ( m in p.adjust.methods ) {
+  Padj <- p.adjust(res.taxa[,2],method=m)
+  res.taxa <- cbind(res.taxa,Padj)
+}
+
+#subsetting (only OTU's where p<0.05)
+sig.res <- res.taxa[(res.taxa[,2]<0.05),]
+
+write.csv(sig.res, file= 'diffEXPRes.csv')
+
